@@ -1,61 +1,55 @@
-# This is a basic workflow to help you get started with Actions
+name: SonarQube Scan
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: 
+    branches:
       - main
+      - master
       - develop
-
   pull_request:
-    types: [opened, synchronize]
-    
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  build-sonar:
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_USER_HOME: ${{ github.workspace }}/.sonar
+
     steps:
-      - name: Checkout repository
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-        uses: actions/checkout@v4
-
-      # 2. Install Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      # 1️⃣ Завантажити код репозиторію
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
-          node-version: 18
+          fetch-depth: 0  # Потрібно для аналізу Git
 
-      # 3. Download dependencies
+      # 2️⃣ Встановити Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # 3️⃣ Кеш npm залежностей
+      - name: Cache Node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+
+      # 4️⃣ Встановити залежності
       - name: Install dependencies
         run: npm install
 
-      # 4. Build the project
-      - name: Build project
-        run: npm run build
-
-      # 5. Run unit tests
-      - name: Run tests
-        run: npm test
-
-      - name: Cache SonarQube
-        uses: actions/cache@v3
+      # 5️⃣ Запустити SonarQube аналіз
+      - name: Run SonarQube Scan
+        uses: sonarsource/sonarcloud-github-action@master
         with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: SonarQube Scan
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: npx sonar-scanner
+          args: >
+            -Dsonar.projectKey=myprj1
+            -Dsonar.sources=src
+            -Dsonar.exclusions=node_modules/**,dist/**
+            -Dsonar.host.url=${{ env.SONAR_HOST_URL }}
+            -Dsonar.login=${{ env.SONAR_TOKEN }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.user.home=${{ env.SONAR_USER_HOME }}
