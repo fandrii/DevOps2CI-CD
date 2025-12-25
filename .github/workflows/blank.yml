@@ -1,4 +1,4 @@
-name: SonarCloud Scan
+name: CI with SonarCloud
 
 on:
   push:
@@ -13,23 +13,29 @@ jobs:
   build-and-analyze:
     runs-on: ubuntu-latest
     steps:
+      # 1. Клонування репозиторію
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Встановлення Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
+      # 3. Встановлення залежностей
       - name: Install dependencies
         run: npm install
 
+      # 4. Збірка проекту (якщо є build-скрипт)
       - name: Build project
         run: npm run build
 
+      # 5. Прогон тестів
       - name: Run tests
         run: npm test
 
+      # 6. Кешування SonarCloud сканера
       - name: Cache SonarCloud
         uses: actions/cache@v3
         with:
@@ -37,11 +43,8 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # 7. Запуск SonarCloud аналізу
       - name: SonarCloud Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: npx sonar-scanner \
-          -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-          -Dsonar.organization=$SONAR_ORGANIZATION \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login=$SONAR_TOKEN
+        run: npx sonar-scanner
