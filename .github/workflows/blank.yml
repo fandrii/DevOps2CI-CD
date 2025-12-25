@@ -46,3 +46,16 @@ jobs:
       # 5. Run unit tests
       - name: Run tests
         run: npm test
+
+      - name: Cache SonarQube
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: npx sonar-scanner
