@@ -1,55 +1,51 @@
-name: SonarQube Scan
+name: CI with SonarCloud
 
 on:
   push:
     branches:
       - main
-      - master
       - develop
   pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
 
 jobs:
-  build-sonar:
+  build-and-analyze:
     runs-on: ubuntu-latest
-
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_USER_HOME: ${{ github.workspace }}/.sonar
-
     steps:
-      # 1️⃣ Завантажити код репозиторію
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Потрібно для аналізу Git
+      # 1. Клонування репозиторію
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 2️⃣ Встановити Node.js
+      # 2. Встановлення Node.js
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 18
 
-      # 3️⃣ Кеш npm залежностей
-      - name: Cache Node modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-
-      # 4️⃣ Встановити залежності
+      # 3. Встановлення залежностей
       - name: Install dependencies
         run: npm install
 
-      # 5️⃣ Запустити SonarQube аналіз
-      - name: Run SonarQube Scan
-        uses: sonarsource/sonarcloud-github-action@master
+      # 4. Збірка проекту
+      - name: Build project
+        run: npm run build
+
+      # 5. Тести
+      - name: Run tests
+        run: npm test
+
+      # 6. Кешування SonarCloud
+      - name: Cache SonarCloud
+        uses: actions/cache@v3
         with:
-          args: >
-            -Dsonar.projectKey=myprj1
-            -Dsonar.sources=src
-            -Dsonar.exclusions=node_modules/**,dist/**
-            -Dsonar.host.url=${{ env.SONAR_HOST_URL }}
-            -Dsonar.login=${{ env.SONAR_TOKEN }}
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.user.home=${{ env.SONAR_USER_HOME }}
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # 7. Запуск аналізу на SonarCloud
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          organization: fandrii   # заміни на свій ключ організації SonarCloud
+          token: ${{ secrets.SONAR_TOKEN }}
